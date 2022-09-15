@@ -1,0 +1,4 @@
+name: EditDamage
+version: '${project.version}'
+main: silverassist.editdamage.EditDamage
+api-version: 1.19
