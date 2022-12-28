@@ -8,7 +8,7 @@ public final class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         // Plugin startup logic
-        getServer().getPluginManager().registerEvents(new DamageCalc(), this);
+        getServer().getPluginManager().registerEvents(new DamageCalc(this), this);
     }
 
     @Override
