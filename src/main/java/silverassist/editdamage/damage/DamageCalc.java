@@ -1,5 +1,6 @@
 package silverassist.editdamage.damage;
 
+import org.bukkit.Bukkit;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -10,16 +11,16 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.*;
 
 public class DamageCalc implements Listener {
 
     //ノックバック処理無効のダメージ種
-    private final EntityDamageEvent.DamageCause[] causes = {
+    private final Set<EntityDamageEvent.DamageCause> noNockBackCause = Set.of(
             EntityDamageEvent.DamageCause.DROWNING,
             EntityDamageEvent.DamageCause.FIRE,
             EntityDamageEvent.DamageCause.FIRE_TICK,
@@ -28,7 +29,13 @@ public class DamageCalc implements Listener {
             EntityDamageEvent.DamageCause.WITHER,
             EntityDamageEvent.DamageCause.HOT_FLOOR,
             EntityDamageEvent.DamageCause.LAVA
-    };
+    );
+
+    private final Set<Player> coolDown = new HashSet<>();
+
+    private final JavaPlugin plugin;
+
+    public DamageCalc(JavaPlugin plugin){this.plugin = plugin;}
 
     @EventHandler
     public void onEntityDamage(EntityDamageEvent e){
@@ -38,6 +45,7 @@ public class DamageCalc implements Listener {
         if(victim.getType()!=EntityType.PLAYER)return;
 
         Player p = (Player)victim;
+        if(coolDown.contains(p))return;
         double[] armor = armorCalc(p);
         double damage = e.getDamage();
 
@@ -51,13 +59,18 @@ public class DamageCalc implements Listener {
         double knockback = -0.7 * rand * (1-armor[2]/60*0.9);
 
         e.setCancelled(true);
-        if(p.hasPotionEffect(PotionEffectType.DAMAGE_RESISTANCE))return;
         if(p.getHealth() - damage> 0){
             p.setHealth(p.getHealth() - damage);
             p.playSound(p.getLocation(),"minecraft:entity.player.death", 1, 1);
-            p.addPotionEffect(new PotionEffect(PotionEffectType.DAMAGE_RESISTANCE, 12,5 ));
+            coolDown.add(p);
+            Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
+                @Override
+                public void run() {
+                    coolDown.remove(p);
+                }
+            },12);
 
-            if(!Arrays.asList(this.causes).contains(e.getCause()))p.setVelocity(p.getLocation().getDirection().multiply(knockback));
+            if(!noNockBackCause.contains(e.getCause()))p.setVelocity(p.getLocation().getDirection().multiply(knockback));
         }
         else p.setHealth(0);
     }
